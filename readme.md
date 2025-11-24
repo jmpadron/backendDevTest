@@ -81,3 +81,8 @@ docker compose run --rm k6 run scripts/test.js
   configured for the retry with backoff, as well as the read and connect timeouts, should be tuned
   according to the expected behavior of the external service and the `/product/{productId}/similar`
   non-functional requirements.
+- I decided to use RestClient with virtual threads and CompletableFuture instead of WebClient.
+  WebClient would also have been a good option, but I wanted to explore RestClient. Since the
+  solution runs on virtual threads, even though RestClient is blocking, performance should not be
+  significantly affected. If I had had more time, I would have compared both approaches and made a
+  more informed decision.
