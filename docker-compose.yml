@@ -1,5 +1,15 @@
-version: "3.3"
 services:
+  similar_products_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: similar-products-app
+    ports:
+      - "5000:5000"
+    command: >
+      java -cp app.jar com.inditex.similar_products.SimilarProductsApplication
+    environment:
+      - PRODUCT_API_BASE_URL=http://host.docker.internal:3001
   influxdb:
     image: influxdb:1.8.2
     ports:
@@ -15,20 +25,20 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_BASIC_ENABLED=false
     volumes:
-      - ./shared/grafana:/etc/grafana/provisioning/
+      - ./provided_mocks_and_tests/grafana:/etc/grafana/provisioning/
   simulado:
     image : ldabiralai/simulado:latest
     ports:
       - "3001:80"
     volumes:
-      - ./shared/simulado:/app
+      - ./provided_mocks_and_tests/simulado:/app
     command: ./bin/simulado -f /app/mocks.json
   k6:
     image: loadimpact/k6:0.28.0
     ports:
       - "6565:6565"
     volumes:
-      - ./shared/k6:/scripts
+      - ./provided_mocks_and_tests/k6:/scripts
     environment:
       - K6_OUT=influxdb=http://influxdb:8086/k6
     extra_hosts:

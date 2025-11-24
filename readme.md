@@ -1,33 +1,83 @@
-# Backend dev technical test
-We want to offer a new feature to our customers showing similar products to the one they are currently seeing. To do this we agreed with our front-end applications to create a new REST API operation that will provide them the product detail of the similar products for a given one. [Here](./similarProducts.yaml) is the contract we agreed.
+# Inditex Technical Test
 
-We already have an endpoint that provides the product Ids similar for a given one. We also have another endpoint that returns the product detail by product Id. [Here](./existingApis.yaml) is the documentation of the existing APIs.
+### Author: Jorge Martínez Padrón
 
-**Create a Spring boot application that exposes the agreed REST API on port 5000.**
+## How to build and run the app
 
-![Diagram](./assets/diagram.jpg "Diagram")
+### Prerequisites
 
-Note that _Test_ and _Mocks_ components are given, you must only implement _yourApp_.
+- Java 21 or higher
+- Docker Engine and Docker Compose
 
-## Testing and Self-evaluation
-You can run the same test we will put through your application. You just need to have docker installed.
+### Build and run the unit tests
 
-First of all, you may need to enable file sharing for the `shared` folder on your docker dashboard -> settings -> resources -> file sharing.
+From your terminal, navigate to the project root and run:
 
-Then you can start the mocks and other needed infrastructure with the following command.
 ```
-docker-compose up -d simulado influxdb grafana
+./gradlew clean build
 ```
-Check that mocks are working with a sample request to [http://localhost:3001/product/1/similarids](http://localhost:3001/product/1/similarids).
 
-To execute the test run:
-```
-docker-compose run --rm k6 run scripts/test.js
-```
-Browse [http://localhost:3000/d/Le2Ku9NMk/k6-performance-test](http://localhost:3000/d/Le2Ku9NMk/k6-performance-test) to view the results.
+### Run with Docker and Docker Compose
 
-## Evaluation
-The following topics will be considered:
-- Code clarity and maintainability
-- Performance
-- Resilience
+I modified the provided docker-compose.yml to include the app as an additional service
+`similar_products_app` based on a custom Dockerfile. To start the application, the mocked product
+API server, and the monitoring tools, run:
+
+```
+docker compose up -d similar_products_app simulado influxdb grafana
+```
+
+To execute the provided test, run:
+
+```
+docker compose run --rm k6 run scripts/test.js
+```
+
+### Run without Docker and Docker Compose
+
+You can also run the application with Gradle:
+
+```
+./gradlew bootRun
+```
+
+To start the mocked product API server, and the monitoring tools, run:
+
+```
+docker compose up -d simulado influxdb grafana
+```
+
+To execute the provided test, run:
+
+```
+docker compose run --rm k6 run scripts/test.js
+```
+
+## Assumptions and technical decisions
+
+- The `/product/{productId}/similar` endpoint returns 404 Product Not Found when the productId in
+  the path does not exist. So, when the `/product/{productId}/similarids` returns 404, I'm assuming
+  that the productId from which the similar products were requested was not found. If
+  `/product/{productId}` returns 404 or any other error, the `/product/{productId}/similar` will
+  return 500 Internal Server Error with a message. This is not clear in the endpoint specification
+  or the test description, but in my opinion, it is the most predictable and coherent approach.
+- If one of the `/product/{productId}` calls fails, the `/product/{productId}/similar` will
+  return 500 Internal Server Error with a message. I also considered returning the list without the
+  failed products or explicitly including the missing IDs in the response. However, since this
+  wasn't clear in the endpoint specification or the test description, I followed the approach I
+  considered more predictable and coherent.
+- For every id in the list returned by the `/product/{productId}/similarids` endpoint, I'm making
+  a call to `/product/{productId}` in parallel (with virtual threads). The current approach assumes
+  that `/product/{productId}` has no rate limiting and is free/inexpensive to call. For a
+  production-ready environment, instead of calling the `/product/{productId}` endpoint with possibly
+  thousands of requests, we should consider:
+    - a bulkhead to limit how many concurrent calls are allowed
+    - a rate limiter to limit the number of calls per second
+    - a circuit breaker to stop calling the endpoint when the number of failures exceeds a threshold
+      and fail quickly
+- I included a retry with backoff mechanism to `/product/{productId}/similarids` and
+  `/product/{productId}` calls. This will likely impact the results of the provided test,
+  especially for the `error` scenario. For a production-ready environment, the values
+  configured for the retry with backoff, as well as the read and connect timeouts, should be tuned
+  according to the expected behavior of the external service and the `/product/{productId}/similar`
+  non-functional requirements.

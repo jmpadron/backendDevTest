@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: similar_products
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 5000
+
+product-api:
+  base-url: ${PRODUCT_API_BASE_URL:http://localhost:3001}
+  similar-product-ids-url: /product/{productId}/similarids
+  product-details-url: /product/{productId}
+  timeouts:
+    read: 90000
+    connect: 10000
+  retry:
+    max-attempts: 3
+    delay: 200
+    multiplier: 2.0
+
+logging:
+  level:
+    root: INFO
